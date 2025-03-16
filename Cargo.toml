@@ -2,6 +2,14 @@
 name = "dicedb-rs"
 version = "0.1.0"
 edition = "2021"
+authors = ["Daniel F. Hauge"]
+description = "Rust SDK for DiceDb."
+readme = "README.md"
+license-file = "LICENSE"
+keywords = ["dicedb", "sdk", "rust", "key-value", "database"]
+repository = "https://github.com/DanielHauge/dicedb-rs"
+
+
 
 [dependencies]
 chrono = "0.4.40"
