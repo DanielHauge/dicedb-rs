@@ -1,3 +1,3 @@
 pub mod client;
-mod commands;
+pub mod commands;
 pub mod rpc;

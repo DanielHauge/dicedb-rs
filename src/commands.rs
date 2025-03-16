@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use prost::{DecodeError, Message};
 
 mod wire {
@@ -21,6 +23,72 @@ impl Into<Value> for SetValue {
     }
 }
 
+impl Into<SetValue> for &str {
+    fn into(self) -> SetValue {
+        SetValue::Str(self.to_string())
+    }
+}
+
+impl Into<SetValue> for String {
+    fn into(self) -> SetValue {
+        SetValue::Str(self)
+    }
+}
+
+impl Into<SetValue> for i64 {
+    fn into(self) -> SetValue {
+        SetValue::Int(self)
+    }
+}
+
+impl Into<SetValue> for f64 {
+    fn into(self) -> SetValue {
+        SetValue::Float(self)
+    }
+}
+
+impl Into<SetValue> for i32 {
+    fn into(self) -> SetValue {
+        SetValue::Int(self as i64)
+    }
+}
+
+impl Into<SetValue> for i16 {
+    fn into(self) -> SetValue {
+        SetValue::Int(self as i64)
+    }
+}
+
+impl Into<SetValue> for i8 {
+    fn into(self) -> SetValue {
+        SetValue::Int(self as i64)
+    }
+}
+
+impl Into<SetValue> for u64 {
+    fn into(self) -> SetValue {
+        SetValue::Int(self as i64)
+    }
+}
+
+impl Into<SetValue> for u32 {
+    fn into(self) -> SetValue {
+        SetValue::Int(self as i64)
+    }
+}
+
+impl Into<SetValue> for u16 {
+    fn into(self) -> SetValue {
+        SetValue::Int(self as i64)
+    }
+}
+
+impl Into<SetValue> for u8 {
+    fn into(self) -> SetValue {
+        SetValue::Int(self as i64)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     VStr(String),
@@ -28,6 +96,18 @@ pub enum Value {
     VFloat(f64),
     VBool(bool),
     VNull,
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::VStr(s) => write!(f, "{}", s),
+            Value::VInt(i) => write!(f, "{}", i),
+            Value::VFloat(fl) => write!(f, "{}", fl),
+            Value::VBool(b) => write!(f, "{}", b),
+            Value::VNull => write!(f, "null"),
+        }
+    }
 }
 
 impl AsArg for Value {

@@ -118,20 +118,25 @@ impl Client {
         Ok(resp)
     }
 
-    pub fn set(&mut self, key: &str, value: SetValue) -> Result<Value> {
+    pub fn set<T: Into<SetValue>>(&mut self, key: &str, value: T) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::SET {
             key: key.to_string(),
-            value,
+            value: value.into(),
             option: crate::commands::SetOption::None,
             get: false,
         })?;
         Ok(resp)
     }
 
-    pub fn setex(&mut self, key: &str, value: SetValue, option: SetOption) -> Result<Value> {
+    pub fn setex<T: Into<SetValue>>(
+        &mut self,
+        key: &str,
+        value: T,
+        option: SetOption,
+    ) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::SET {
             key: key.to_string(),
-            value,
+            value: value.into(),
             option,
             get: false,
         })?;
