@@ -5,6 +5,23 @@ mod wire {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum SetValue {
+    Str(String),
+    Int(i64),
+    Float(f64),
+}
+
+impl Into<Value> for SetValue {
+    fn into(self) -> Value {
+        match self {
+            SetValue::Str(s) => Value::VStr(s),
+            SetValue::Int(i) => Value::VInt(i),
+            SetValue::Float(f) => Value::VFloat(f),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     VStr(String),
     VInt(i64),
@@ -55,6 +72,10 @@ trait AsArg {
     fn as_arg(&self) -> String;
 }
 
+trait AsArgs {
+    fn as_args(&self) -> Vec<String>;
+}
+
 pub enum ExpireOption {
     NX, // Don't overwrite existing expiration time
     XX, // Only set the expiration time if it already exists
@@ -71,11 +92,12 @@ impl AsArg for ExpireOption {
     }
 }
 
-pub(crate) enum ExpireAtOption {
+pub enum ExpireAtOption {
     NX, // Don't overwrite existing expiration time
     XX, // Only set the expiration time if it already exists
     GT, // Set the expiration time only if it's greater than the existing expiration time
     LT, // Set the expiration time only if it's less than the existing expiration time
+    None,
 }
 
 impl AsArg for ExpireAtOption {
@@ -85,6 +107,7 @@ impl AsArg for ExpireAtOption {
             ExpireAtOption::XX => "XX".to_string(),
             ExpireAtOption::GT => "GT".to_string(),
             ExpireAtOption::LT => "LT".to_string(),
+            ExpireAtOption::None => "".to_string(),
         }
     }
 }
@@ -97,19 +120,19 @@ pub enum GetexOption {
     PERSIST,
 }
 
-impl AsArg for GetexOption {
-    fn as_arg(&self) -> String {
+impl AsArgs for GetexOption {
+    fn as_args(&self) -> Vec<String> {
         match self {
-            GetexOption::EX(seconds) => format!("EX {seconds}"),
-            GetexOption::PX(milliseconds) => format!("PX {milliseconds}"),
-            GetexOption::EXAT(timestamp) => format!("EXAT {timestamp}"),
-            GetexOption::PXAT(timestamp) => format!("PXAT {timestamp}"),
-            GetexOption::PERSIST => "PERSIST".to_string(),
+            GetexOption::EX(seconds) => vec!["EX".to_string(), seconds.to_string()],
+            GetexOption::PX(milliseconds) => vec!["PX".to_string(), milliseconds.to_string()],
+            GetexOption::EXAT(timestamp) => vec!["EXAT".to_string(), timestamp.to_string()],
+            GetexOption::PXAT(timestamp) => vec!["PXAT".to_string(), timestamp.to_string()],
+            GetexOption::PERSIST => vec!["PERSIST".to_string()],
         }
     }
 }
 
-pub(crate) enum SetOption {
+pub enum SetOption {
     EX(u64),
     PX(u64),
     EXAT(u64),
@@ -120,17 +143,17 @@ pub(crate) enum SetOption {
     None,
 }
 
-impl AsArg for SetOption {
-    fn as_arg(&self) -> String {
+impl AsArgs for SetOption {
+    fn as_args(&self) -> Vec<String> {
         match self {
-            SetOption::EX(seconds) => format!("EX {seconds}"),
-            SetOption::PX(milliseconds) => format!("PX {milliseconds}"),
-            SetOption::EXAT(timestamp) => format!("EXAT {timestamp}"),
-            SetOption::PXAT(timestamp) => format!("PXAT {timestamp}"),
-            SetOption::XX => "XX".to_string(),
-            SetOption::NX => "NX".to_string(),
-            SetOption::KEEPTTL => "KEEPTTL".to_string(),
-            SetOption::None => "".to_string(),
+            SetOption::EX(seconds) => vec!["EX".to_string(), seconds.to_string()],
+            SetOption::PX(milliseconds) => vec!["PX".to_string(), milliseconds.to_string()],
+            SetOption::EXAT(timestamp) => vec!["EXAT".to_string(), timestamp.to_string()],
+            SetOption::PXAT(timestamp) => vec!["PXAT".to_string(), timestamp.to_string()],
+            SetOption::XX => vec!["XX".to_string()],
+            SetOption::NX => vec!["NX".to_string()],
+            SetOption::KEEPTTL => vec!["KEEPTTL".to_string()],
+            SetOption::None => vec![],
         }
     }
 }
@@ -208,7 +231,7 @@ pub(crate) enum Command {
     PING,
     SET {
         key: String,
-        value: Value,
+        value: SetValue,
         option: SetOption,
         get: bool,
     },
@@ -253,23 +276,37 @@ impl Into<wire::Command> for Command {
                     args,
                 }
             }
-
             Command::EXPIRE {
                 key,
                 seconds,
                 option,
-            } => wire::Command {
-                cmd: "EXPIRE".to_string(),
-                args: vec![key, seconds.to_string(), option.as_arg()],
-            },
+            } => {
+                let mut args = vec![key, seconds.to_string()];
+                match option {
+                    ExpireOption::NX => args.push("NX".to_string()),
+                    ExpireOption::XX => args.push("XX".to_string()),
+                    ExpireOption::None => {}
+                }
+                wire::Command {
+                    cmd: "EXPIRE".to_string(),
+                    args,
+                }
+            }
             Command::EXPIREAT {
                 key,
                 timestamp,
-                option: option_arg,
-            } => wire::Command {
-                cmd: "EXPIREAT".to_string(),
-                args: vec![key, timestamp.to_string(), option_arg.as_arg()],
-            },
+                option,
+            } => {
+                let mut args = vec![key, timestamp.to_string()];
+                match option {
+                    ExpireAtOption::None => {}
+                    option => args.push(option.as_arg()),
+                }
+                wire::Command {
+                    cmd: "EXPIREAT".to_string(),
+                    args,
+                }
+            }
             Command::EXPIRETIME { key } => wire::Command {
                 cmd: "EXPIRETIME".to_string(),
                 args: vec![key],
@@ -286,10 +323,14 @@ impl Into<wire::Command> for Command {
                 cmd: "GETDEL".to_string(),
                 args: vec![key],
             },
-            Command::GETEX { key, ex } => wire::Command {
-                cmd: "GETEX".to_string(),
-                args: vec![key, ex.as_arg()],
-            },
+            Command::GETEX { key, ex } => {
+                let mut args = vec![key];
+                args.extend(ex.as_args());
+                wire::Command {
+                    cmd: "GETEX".to_string(),
+                    args,
+                }
+            }
             Command::GETWATCH { key } => wire::Command {
                 cmd: "GETWATCH".to_string(),
                 args: vec![key],
@@ -318,19 +359,19 @@ impl Into<wire::Command> for Command {
                 value,
                 option,
                 get,
-            } => wire::Command {
-                cmd: "SET".to_string(),
-                args: vec![
-                    key,
-                    value.as_arg(),
-                    option.as_arg(),
-                    if get {
-                        "GET".to_string()
-                    } else {
-                        "".to_string()
-                    },
-                ],
-            },
+            } => {
+                let value: Value = value.into();
+                let mut args = vec![key, value.as_arg()];
+                args.extend(option.as_args());
+                match get {
+                    true => args.push("GET".to_string()),
+                    false => {}
+                }
+                wire::Command {
+                    cmd: "SET".to_string(),
+                    args,
+                }
+            }
             Command::TTL { key } => wire::Command {
                 cmd: "TTL".to_string(),
                 args: vec![key],
