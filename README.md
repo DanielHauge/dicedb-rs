@@ -3,24 +3,15 @@
 Rust SDK for DiceDb.
 This project is a work in progress, and are missing ```GET.WATCH``` and ```UNWATCH``` features, quality of life features, a crate deploy and examples.
 
-## Build
+## Usage
 
-Pre-requisites:
+Add as a dependency in your Rust project.
 
-- Install the protobuf compiler (protoc) - ex. [Protobuf](https://archlinux.org/packages/extra/x86_64/protobuf/) for arch.
-- [Rustup](https://www.rust-lang.org/tools/install)
-
-```bash
-cargo build
+```sh
+cargo add dicedb-rs
 ```
 
-## Test
-
-```bash
-cargo test
-```
-
-## Example usage
+### Example usage
 
 Some initial simple examples of how to use the sdk.
 
@@ -57,4 +48,21 @@ fn main() -> Result<(), client::ClientError> {
 
     Ok(())
 }
+```
+
+## Build
+
+Pre-requisites:
+
+- Install the protobuf compiler (protoc) - ex. [Protobuf](https://archlinux.org/packages/extra/x86_64/protobuf/) for arch.
+- [Rustup](https://www.rust-lang.org/tools/install)
+
+```bash
+cargo build
+```
+
+## Test
+
+```bash
+cargo test
 ```
