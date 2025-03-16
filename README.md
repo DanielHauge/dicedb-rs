@@ -1,6 +1,7 @@
 # dicedb-rs
 
-Rust SDK for DiceDb.
+Rust SDK for DiceDB.
+
 This project is a work in progress, and are missing ```GET.WATCH``` and ```UNWATCH``` features, quality of life features, a crate deploy and examples.
 
 ## Usage

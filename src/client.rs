@@ -50,7 +50,7 @@ pub struct Client {
 
 impl Client {
     pub fn new(host: String, port: u16) -> Result<Self> {
-        let mut command_client = Self::new_command_client(host.clone(), port);
+        let mut command_client = Self::new_command_client(host.clone(), port)?;
         command_client.handshake()?;
         Ok(Client {
             host,
@@ -59,15 +59,15 @@ impl Client {
         })
     }
 
-    fn new_command_client(host: String, port: u16) -> CommandClient {
-        let stream = std::net::TcpStream::connect(format!("{}:{}", host, port)).unwrap();
+    fn new_command_client(host: String, port: u16) -> Result<CommandClient> {
+        let stream = std::net::TcpStream::connect(format!("{}:{}", host, port))?;
         let id = Uuid::new_v4().to_string();
-        CommandClient {
+        Ok(CommandClient {
             stream,
             id,
             host,
             port,
-        }
+        })
     }
 
     fn new_watch_client(&self) -> WatchClient {
