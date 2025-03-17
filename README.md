@@ -1,8 +1,7 @@
 # dicedb-rs
 
 Unofficial Rust SDK for DiceDB.
-
-This project is a work in progress, and are missing ```GET.WATCH``` and ```UNWATCH``` features, quality of life features.
+This project is a work in progress, but support all operations of DiceDB.
 
 ## Usage
 
@@ -28,24 +27,13 @@ fn main() -> Result<(), client::ClientError> {
     let value = client.get("Hello")?;
     println!("Hello: {}", value);
 
-    // set a key
-    client.set("my_int", 1)?;
+    // Subscribe to changes in the Hello key
+    let (hello_changes, _) = client.get_watch("Hello").unwrap();
 
-    // Increment a key
-    client.incrby("my_int", 5)?;
-
-    // Decrement a key
-    client.decr("my_int")?;
-
-    // Get an int
-    let int_value = client.get("my_int")?;
-    match int_value {
-        Value::VInt(int_value) => println!("my_int: {}", int_value),
-        _ => println!("my_int is not an int? oh nouh!, someone changed my int!"),
+    // Listen for changes
+    for change in hello_changes {
+        eprintln!("There was a change: {:?}", change);
     }
-
-    // Delete a key
-    client.del(vec!["my_int", "Hello"])?;
 
     Ok(())
 }
