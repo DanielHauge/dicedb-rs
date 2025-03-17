@@ -1,6 +1,6 @@
+use crate::stream::{Stream, StreamError};
 use crate::{
     commandstream::{CommandStream, CommandStreamError},
-    stream::{self, Stream, StreamError},
     watchstream::WatchStreamError,
 };
 

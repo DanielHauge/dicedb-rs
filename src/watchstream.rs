@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     commands::{Command, CommandExecutor, ExecutionMode, Value, WatchValue},
-    stream::{Stream, StreamError, ValueReceiver, WatchValueReceiver},
+    stream::{Stream, StreamError, WatchValueReceiver},
 };
 
 #[derive(Debug)]
@@ -26,12 +26,12 @@ impl From<StreamError> for WatchStreamError {
     }
 }
 
-pub(crate) struct WatchStream {
+pub struct WatchStream {
     host: String,
     port: u16,
-    pub fingerprint: Option<String>,
-    pub id: String,
-    pub stream: std::net::TcpStream,
+    pub(crate) fingerprint: Option<String>,
+    pub(crate) id: String,
+    pub(crate) stream: std::net::TcpStream,
 }
 
 impl WatchStream {

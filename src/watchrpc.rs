@@ -1,5 +1,3 @@
-use std::io;
-
 use crate::{
     client::{Client, ClientError},
     commands::{Command, CommandExecutor, Value},
@@ -10,7 +8,7 @@ use crate::{
 type Result<T> = std::result::Result<T, ClientError>;
 
 impl Client {
-    fn get_watch(&mut self, key: &str) -> Result<(WatchStream, Value)> {
+    pub fn get_watch(&mut self, key: &str) -> Result<(WatchStream, Value)> {
         let mut new_watch_stream = WatchStream::new(self.host.clone(), self.port)?;
         new_watch_stream.handshake()?;
         let get_watch = Command::GETWATCH {
