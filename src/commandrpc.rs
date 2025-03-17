@@ -1,12 +1,32 @@
 use crate::client::Client;
-use crate::client::Result;
 use crate::commands::Command;
+use crate::commands::CommandExecutor;
 use crate::commands::ExpireAtOption;
 use crate::commands::ExpireOption;
 use crate::commands::GetexOption;
 use crate::commands::SetOption;
 use crate::commands::SetValue;
 use crate::commands::Value;
+use crate::stream::StreamError;
+
+type Result<T> = std::result::Result<T, StreamError>;
+
+pub enum DelInput<'a> {
+    Single(&'a str),
+    Multiple(Vec<&'a str>),
+}
+
+impl<'a> Into<DelInput<'a>> for Vec<&'a str> {
+    fn into(self) -> DelInput<'a> {
+        DelInput::Multiple(self)
+    }
+}
+
+impl<'a> Into<DelInput<'a>> for &'a str {
+    fn into(self) -> DelInput<'a> {
+        DelInput::Single(self)
+    }
+}
 
 impl Client {
     pub fn decr(&mut self, key: &str) -> Result<Value> {
@@ -24,10 +44,13 @@ impl Client {
         Ok(resp)
     }
 
-    pub fn del(&mut self, keys: Vec<&str>) -> Result<Value> {
-        let resp = self.command_client.execute_command(Command::DEL {
-            keys: keys.iter().map(|&x| x.to_string()).collect(),
-        })?;
+    pub fn del<'a, T: Into<DelInput<'a>>>(&mut self, keys: T) -> Result<Value> {
+        let del_input: DelInput = keys.into();
+        let keys = match del_input {
+            DelInput::Single(key) => vec![key].iter().map(|&x| x.to_string()).collect(),
+            DelInput::Multiple(keys) => keys.iter().map(|&x| x.to_string()).collect(),
+        };
+        let resp = self.command_client.execute_command(Command::DEL { keys })?;
         Ok(resp)
     }
 

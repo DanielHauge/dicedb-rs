@@ -2,6 +2,8 @@ use std::fmt::Display;
 
 use prost::{DecodeError, Message};
 
+use crate::stream::StreamError;
+
 mod wire {
     tonic::include_proto!("wire");
 }
@@ -136,14 +138,86 @@ impl Into<Value> for wire::response::Value {
     }
 }
 
-impl Value {
-    pub fn decode_response(bytes: &[u8]) -> Result<Value, DecodeError> {
+#[derive(Debug)]
+pub enum CommandError {
+    IoError(std::io::Error),
+    ServerError(String),
+    DecodeError(DecodeError),
+    WatchValueExpectationError(String),
+}
+
+#[derive(Debug)]
+pub struct WatchValue {
+    pub value: Value,
+    pub fingerprint: String,
+}
+
+impl Into<Value> for WatchValue {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
+impl WatchValue {
+    pub fn decode_watchvalue(bytes: &[u8]) -> Result<Self, CommandError> {
         match wire::Response::decode(bytes) {
-            Ok(v) => match v.value {
-                Some(value) => Ok(value.into()),
-                None => Ok(Value::VNull),
-            },
-            Err(e) => Err(e),
+            Ok(v) => {
+                eprintln!("WatchValueResponse{:?}", v);
+                if v.err == "" {
+                    let fingerprint = match v
+                        .attrs
+                        .ok_or(CommandError::WatchValueExpectationError(
+                            "Missing attributes from response".to_string(),
+                        ))?
+                        .fields
+                        .get("fingerprint")
+                        .ok_or(CommandError::WatchValueExpectationError(
+                            "Missing fingerprint from attributes".to_string(),
+                        ))?
+                        .kind
+                        .clone()
+                        .ok_or(CommandError::WatchValueExpectationError(
+                            "Missing kind from fingerprint attribute".to_string(),
+                        ))? {
+                        prost_types::value::Kind::StringValue(s) => s,
+                        _ => {
+                            return Err(CommandError::WatchValueExpectationError(
+                                "Fingerprint is not a string".to_string(),
+                            ))
+                        }
+                    };
+                    let value = v
+                        .value
+                        .ok_or(CommandError::WatchValueExpectationError(
+                            "Missing value from response".to_string(),
+                        ))?
+                        .into();
+
+                    Ok(WatchValue { value, fingerprint })
+                } else {
+                    Err(CommandError::ServerError(v.err))
+                }
+            }
+            Err(e) => Err(CommandError::DecodeError(e)),
+        }
+    }
+}
+
+impl Value {
+    pub fn decode_value(bytes: &[u8]) -> Result<Self, CommandError> {
+        match wire::Response::decode(bytes) {
+            Ok(v) => {
+                eprintln!("ValueRespone: {:?}", v);
+                if v.err == "" {
+                    match v.value {
+                        Some(value) => Ok(value.into()),
+                        None => Ok(Value::VNull),
+                    }
+                } else {
+                    Err(CommandError::ServerError(v.err))
+                }
+            }
+            Err(e) => Err(CommandError::DecodeError(e)),
         }
     }
 }
@@ -156,6 +230,11 @@ trait AsArgs {
     fn as_args(&self) -> Vec<String>;
 }
 
+pub(crate) trait CommandExecutor {
+    fn execute_command(&mut self, command: Command) -> Result<Value, StreamError>;
+}
+
+#[derive(Debug)]
 pub enum ExpireOption {
     NX, // Don't overwrite existing expiration time
     XX, // Only set the expiration time if it already exists
@@ -172,6 +251,7 @@ impl AsArg for ExpireOption {
     }
 }
 
+#[derive(Debug)]
 pub enum ExpireAtOption {
     NX, // Don't overwrite existing expiration time
     XX, // Only set the expiration time if it already exists
@@ -192,6 +272,7 @@ impl AsArg for ExpireAtOption {
     }
 }
 
+#[derive(Debug)]
 pub enum GetexOption {
     EX(u64),
     PX(u64),
@@ -212,6 +293,7 @@ impl AsArgs for GetexOption {
     }
 }
 
+#[derive(Debug)]
 pub enum SetOption {
     EX(u64),
     PX(u64),
@@ -238,6 +320,7 @@ impl AsArgs for SetOption {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum ExecutionMode {
     Command,
     Watch,
@@ -252,6 +335,7 @@ impl AsArg for ExecutionMode {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum Command {
     DECR {
         key: String,
@@ -412,7 +496,7 @@ impl Into<wire::Command> for Command {
                 }
             }
             Command::GETWATCH { key } => wire::Command {
-                cmd: "GETWATCH".to_string(),
+                cmd: "GET.WATCH".to_string(),
                 args: vec![key],
             },
             Command::HANDSHAKE {
