@@ -9,6 +9,11 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      dicedb:
+        image: dicedb/dicedb:latest
+        ports:
+          - 7379:7379
     steps:
       - uses: actions/checkout@v4
         with:
