@@ -10,6 +10,9 @@
     <a href="https://github.com/DanielHauge/dicedb-rs/actions/workflows/rust.yml">
         <img alt="Tests" src="https://img.shields.io/github/actions/workflow/status/DanielHauge/dicedb-rs/rust.yml?style=flat-square">
     </a>
+    <a href="https://codecov.io/gh/DanielHauge/dicedb-rs" >
+        <img src="https://codecov.io/gh/DanielHauge/dicedb-rs/graph/badge.svg?token=WU77N7TR2B"/>
+    </a>
     <a href="https://crates.io/crates/dicedb-rs">
       <img alt="Crate.io" src="https://img.shields.io/crates/v/dicedb-rs.svg?style=flat-square" />
     </a>
