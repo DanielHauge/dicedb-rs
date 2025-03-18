@@ -1,5 +1,5 @@
 <h4 align="center">
-  <a href="https://dicedb.io/">Getting Started</a>
+  <a href="#getting-started">Getting Started</a>
   ·
   <a href="./examples/">Examples</a>
   ·
