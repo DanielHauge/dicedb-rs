@@ -162,7 +162,6 @@ impl WatchValue {
     pub fn decode_watchvalue(bytes: &[u8]) -> Result<Self, CommandError> {
         match wire::Response::decode(bytes) {
             Ok(v) => {
-                eprintln!("WatchValueResponse{:?}", v);
                 if v.err == "" {
                     let fingerprint = match v
                         .attrs
@@ -207,7 +206,6 @@ impl Value {
     pub fn decode_value(bytes: &[u8]) -> Result<Self, CommandError> {
         match wire::Response::decode(bytes) {
             Ok(v) => {
-                eprintln!("ValueRespone: {:?}", v);
                 if v.err == "" {
                     match v.value {
                         Some(value) => Ok(value.into()),
