@@ -101,7 +101,6 @@ impl<T: Stream> ValueReceiver for T {
 
 impl<T: Stream> CommandSender for T {
     fn send_command(&mut self, command: Command) -> Result<(), StreamError> {
-        eprint!("Sending command: {:?} -> ", command);
         let serialized_command = command.encode();
         match self.tcp_stream().write_all(&serialized_command) {
             Ok(_) => Ok(()),
