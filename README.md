@@ -99,3 +99,9 @@ Run tests with:
 ```bash
 cargo test
 ```
+
+Run benchmarks with:
+
+```bash
+cargo bench
+```
