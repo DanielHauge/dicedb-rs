@@ -173,7 +173,7 @@ impl Client {
         Ok(resp)
     }
 
-    pub fn r#type(&mut self, key: &str) -> Result<Value> {
+    pub fn dtype(&mut self, key: &str) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::TYPE {
             key: key.to_string(),
         })?;
@@ -431,7 +431,7 @@ mod tests {
         let key = "test_type_str";
         let value = SetValue::Str("test".to_string());
         client.set(key, value.clone()).unwrap();
-        let result = client.r#type(key).unwrap();
+        let result = client.dtype(key).unwrap();
         assert_eq!(result, Value::VStr("string".to_string()));
     }
 
@@ -441,7 +441,7 @@ mod tests {
         let key = "test_type_int";
         let value = SetValue::Int(1);
         client.set(key, value.clone()).unwrap();
-        let result = client.r#type(key).unwrap();
+        let result = client.dtype(key).unwrap();
         assert_eq!(result, Value::VStr("int".to_string()));
     }
 
@@ -449,7 +449,7 @@ mod tests {
     fn test_type_null() {
         let mut client = Client::new(HOST.to_string(), PORT).unwrap();
         let key = "test_type_null";
-        let result = client.r#type(key).unwrap();
+        let result = client.dtype(key).unwrap();
         assert_eq!(result, Value::VStr("none".to_string()));
     }
 
@@ -459,7 +459,7 @@ mod tests {
         let key = "test_type_float";
         let value = SetValue::Float(1.3);
         client.set(key, value.clone()).unwrap();
-        let result = client.r#type(key).unwrap();
+        let result = client.dtype(key).unwrap();
         assert_eq!(result, Value::VStr("float".to_string()));
     }
 }
