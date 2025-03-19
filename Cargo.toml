@@ -10,7 +10,6 @@ keywords = ["dicedb", "sdk", "rust", "key-value", "database"]
 repository = "https://github.com/DanielHauge/dicedb-rs"
 
 
-
 [dependencies]
 chrono = "0.4.40"
 prost = "0.12"
@@ -20,3 +19,13 @@ uuid = { version = "1.16.0", features = ["v4"] }
 
 [build-dependencies]
 tonic-build = "0.12.3"
+
+[dev-dependencies]
+criterion = {version ="0.5", features = ["html_reports"]}
+
+[lib] # Ingoring other benches than criterion with this.
+bench = false
+
+[[bench]]
+name = "ops"
+harness = false
