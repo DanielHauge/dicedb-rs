@@ -387,13 +387,13 @@ mod tests {
     #[test]
     fn test_existsmany() {
         let mut client = Client::new(HOST.to_string(), PORT).unwrap();
-        let key1 = "testexists1";
+        let key1 = "testexistsmany1";
         client.set(key1, "test").unwrap();
-        let key2 = "testexists2";
+        let key2 = "testexistsmany2";
         client.set(key2, "test").unwrap();
-        let key3 = "testexists3";
+        let key3 = "testexistsmany3";
         let result = client.exists(key1, vec![key2, key3]).unwrap();
-        assert_eq!(result, Value::VInt(2));
+        assert_eq!(result, Value::VInt(3));
     }
 
     #[test]
@@ -408,9 +408,9 @@ mod tests {
     #[test]
     fn test_exists_two() {
         let mut client = Client::new(HOST.to_string(), PORT).unwrap();
-        let key1 = "testexists1";
+        let key1 = "testexiststwo1";
         client.set(key1, "test").unwrap();
-        let key2 = "testexists2";
+        let key2 = "testexiststwo2";
         client.set(key2, "test").unwrap();
         let result = client.exists(key1, vec![key2]).unwrap();
         assert_eq!(result, Value::VInt(2));
