@@ -1,8 +1,9 @@
-use std::io::{Error, Read, Write};
+use std::io::{Read, Write};
 
-use prost::DecodeError;
-
-use crate::commands::{Command, CommandError, CommandExecutor, Value, WatchValue};
+use crate::{
+    commands::{Command, CommandExecutor, Value, WatchValue},
+    errors::StreamError,
+};
 
 pub trait Stream {
     fn host(&self) -> &str;
@@ -54,30 +55,6 @@ impl<T: Stream> Reconnectable for T {
 }
 
 const MAX_REQUEST_SIZE: usize = 32 * 1024 * 1024; // 32MB per session, meeh probably too much, fi.
-
-#[derive(Debug)]
-pub enum StreamError {
-    IoError(Error),
-    DecodeError(DecodeError),
-    CommandError(CommandError),
-}
-
-impl From<Error> for StreamError {
-    fn from(error: Error) -> Self {
-        StreamError::IoError(error)
-    }
-}
-
-impl From<DecodeError> for StreamError {
-    fn from(error: DecodeError) -> Self {
-        StreamError::DecodeError(error)
-    }
-}
-impl From<CommandError> for StreamError {
-    fn from(error: CommandError) -> Self {
-        StreamError::CommandError(error)
-    }
-}
 
 impl<T: Stream> WatchValueReceiver for T {
     fn recieve_watchvalue(&mut self) -> Result<WatchValue, StreamError> {

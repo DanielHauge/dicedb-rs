@@ -1,20 +1,16 @@
 use crate::client::Client;
 use crate::commands::Command;
 use crate::commands::CommandExecutor;
+use crate::commands::DelInput;
 use crate::commands::ExpireAtOption;
 use crate::commands::ExpireOption;
 use crate::commands::GetexOption;
 use crate::commands::SetOption;
 use crate::commands::SetValue;
 use crate::commands::Value;
-use crate::stream::StreamError;
+use crate::errors::StreamError;
 
 type Result<T> = std::result::Result<T, StreamError>;
-
-pub enum DelInput<'a> {
-    Single(&'a str),
-    Multiple(Vec<&'a str>),
-}
 
 impl<'a> Into<DelInput<'a>> for Vec<&'a str> {
     fn into(self) -> DelInput<'a> {
@@ -29,13 +25,32 @@ impl<'a> Into<DelInput<'a>> for &'a str {
 }
 
 impl Client {
+    /// Decrements the integer at `key` by one. Creates `key` as -1 if absent. Errors on wrong type
+    /// or non-integer string. Limited to 64-bit signed integers.
+    ///
+    /// # Arguments
+    /// * `key` - The key to decrement.
+    /// # Returns
+    /// * [`Value`] - The new value of `key`.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn decr(&mut self, key: &str) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::DECR {
             key: key.to_string(),
         })?;
         Ok(resp)
     }
-
+    // DECRBY command decrements the integer at ‘key’ by the delta specified. Creates ‘key’ with value (-delta) if absent. Errors on wrong type or non-integer string. Limited to 64-bit signed integers.
+    /// Decrements the integer at `key` by `delta`. Creates `key` as `-delta` if absent. Errors on
+    /// wrong type
+    /// or non-integer string. Limited to 64-bit signed integers.
+    /// # Arguments
+    /// * `key` - The key to decrement.
+    /// * `delta` - The amount to decrement by.
+    /// # Returns
+    /// * [`Value`] - The new value of `key`.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn decrby(&mut self, key: &str, delta: i64) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::DECRBY {
             key: key.to_string(),
@@ -44,8 +59,16 @@ impl Client {
         Ok(resp)
     }
 
+    // DEL command deletes all the specified keys and returns the number of keys deleted on success. &
+    /// Deletes all the specified keys and returns the number of keys deleted on success.
+    /// # Arguments
+    /// * `keys` - The keys to delete, either a single key or multiple keys.
+    /// # Returns
+    /// * [`Value`] - The number of keys deleted.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn del<'a, T: Into<DelInput<'a>>>(&mut self, keys: T) -> Result<Value> {
-        let del_input: DelInput = keys.into();
+        let del_input: DelInput<'_> = keys.into();
         let keys = match del_input {
             DelInput::Single(key) => vec![key].iter().map(|&x| x.to_string()).collect(),
             DelInput::Multiple(keys) => keys.iter().map(|&x| x.to_string()).collect(),
@@ -54,6 +77,13 @@ impl Client {
         Ok(resp)
     }
 
+    /// Echos a message with the server, ie. returns the message passed to it.
+    /// # Arguments
+    /// * `message` - The message to return.
+    /// # Returns
+    /// * [`Value`] - The message.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn echo(&mut self, message: &str) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::ECHO {
             message: message.to_string(),
@@ -61,6 +91,14 @@ impl Client {
         Ok(resp)
     }
 
+    /// Checks if the specified keys exist.
+    /// # Arguments
+    /// * `key` - The key to check.
+    /// * `additional_keys` - Additional keys to check. If empty, only `key` is checked.
+    /// # Returns
+    /// * [`Value`] - The number of keys that exist.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn exists(&mut self, key: &str, additional_keys: Vec<&str>) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::EXISTS {
             key: key.to_string(),
@@ -68,7 +106,25 @@ impl Client {
         })?;
         Ok(resp)
     }
-
+    // EXPIRE sets an expiry (in seconds) on a specified key. After the expiry time has elapsed, the key will be automatically deleted.
+    //
+    //     If you want to delete the expirtation time on the key, you can use the PERSIST command.
+    //
+    // The command returns 1 if the expiry was set, and 0 if the key already had an expiry set. The command supports the following options:
+    //
+    //     NX: Set the expiration only if the key does not already have an expiration time.
+    //     XX: Set the expiration only if the key already has an expiration time.
+    //
+    /// Sets an expiry (in seconds) on a specified key. After the expiry time has elapsed, the key
+    /// will be automatically deleted.
+    /// # Arguments
+    /// * `key` - The key to set the expiry on.
+    /// * `seconds` - The number of seconds until the key expires.
+    /// * `option`: [`ExpireOption`] - The option to specify conditions for setting the expiry.
+    /// # Returns
+    /// * [`Value`] - 1 if the expiry was set, 0 if expire was not set.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn expire(&mut self, key: &str, seconds: i64, option: ExpireOption) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::EXPIRE {
             key: key.to_string(),
@@ -78,6 +134,17 @@ impl Client {
         Ok(resp)
     }
 
+    /// Sets the expiration time of a key as an absolute Unix timestamp (in seconds). After the
+    /// expiry
+    /// time has elapsed, the key will be automatically deleted.
+    /// # Arguments
+    /// * `key` - The key to set the expiry on.
+    /// * `timestamp` - The Unix timestamp in seconds.
+    /// * `option`: [`ExpireAtOption`] - The option to specify conditions for setting the expiry.
+    /// # Returns
+    /// * [`Value`] - 1 if the expiry was set or updated, 0 if the expiration time was not changed.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn expireat(&mut self, key: &str, timestamp: i64, option: ExpireAtOption) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::EXPIREAT {
             key: key.to_string(),
@@ -87,6 +154,13 @@ impl Client {
         Ok(resp)
     }
 
+    /// Returns the absolute Unix timestamp in seconds at which the given key will expire.
+    /// # Arguments
+    /// * `key` - The key to get the expiry time of.
+    /// # Returns
+    /// * [`Value`] - The Unix timestamp in seconds.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn expiretime(&mut self, key: &str) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::EXPIRETIME {
             key: key.to_string(),
@@ -94,18 +168,33 @@ impl Client {
         Ok(resp)
     }
 
+    /// Deletes all keys present in the database.
     pub fn flushdb(&mut self) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::FLUSHDB)?;
         Ok(resp)
     }
-
+    // GET returns the value for the key in args.
+    //
+    // The command returns (nil) if the key does not exist.
+    /// Returns the value for the given key.
+    /// # Arguments
+    /// * `key` - The key to get the value of.
+    /// # Returns
+    /// * [`Value`] - The value of the key. Returns a valid  [`Value::VNull`] variant if the key does not exist.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn get(&mut self, key: &str) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::GET {
             key: key.to_string(),
         })?;
         Ok(resp)
     }
-
+    /// Returns the value for the given key and then deletes the key.
+    /// # Arguments
+    /// * `key` - The key to get the value of and delete.
+    /// # Returns
+    /// * [`Value`] - The value of the key. Returns a valid  [`Value::VNull`] variant if the key
+    /// does not exist.
     pub fn getdel(&mut self, key: &str) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::GETDEL {
             key: key.to_string(),
@@ -113,6 +202,15 @@ impl Client {
         Ok(resp)
     }
 
+    /// Returns the value for the given key and optionally sets its expiration.
+    /// # Arguments
+    /// * `key` - The key to get the value of.
+    /// * `option`: [`GetexOption`] - The option to specify conditions for setting the expiry.
+    /// # Returns
+    /// * [`Value`] - The value of the key. Returns a valid  [`Value::VNull`] variant if the key
+    /// does not exist.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn getex(&mut self, key: &str, option: GetexOption) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::GETEX {
             key: key.to_string(),
@@ -120,14 +218,26 @@ impl Client {
         })?;
         Ok(resp)
     }
-
+    /// Increments the integer at `key` by one. Creates `key` as 1 if absent.    
+    /// /// # Arguments
+    /// * `key` - The key to increment.
+    /// # Returns
+    /// * [`Value`] - The new value of `key`.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream, or if the key is not
+    /// an integer.
     pub fn incr(&mut self, key: &str) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::INCR {
             key: key.to_string(),
         })?;
         Ok(resp)
     }
-
+    /// Increments the integer at `key` by `delta`. Creates `key` as `delta` if absent.
+    /// # Arguments
+    /// * `key` - The key to increment.
+    /// * `delta` - The amount to increment by.
+    /// # Returns
+    /// * [`Value`] - The new value of `key`, or an error if the key is not an integer.
     pub fn incrby(&mut self, key: &str, delta: i64) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::INCRBY {
             key: key.to_string(),
@@ -135,12 +245,24 @@ impl Client {
         })?;
         Ok(resp)
     }
-
+    /// Returns PONG if no argument is provided, otherwise it returns PONG with the message
+    /// argument.
+    /// # Returns
+    /// * [`Value`] - The response from the server, with PONG if no argument is provided.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn ping(&mut self) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::PING)?;
         Ok(resp)
     }
-
+    /// Sets the value of a key.
+    /// # Arguments
+    /// * `key` - The key to set the value of.
+    /// * `value` - The value to set.
+    /// # Returns
+    /// * [`Value`] - A response from the server with an OK if succes.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn set<T: Into<SetValue>>(&mut self, key: &str, value: T) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::SET {
             key: key.to_string(),
@@ -151,6 +273,14 @@ impl Client {
         Ok(resp)
     }
 
+    /// Sets the value of a key and returns the previous value.
+    /// # Arguments
+    /// * `key` - The key to set the value of.
+    /// * `value` - The value to set.
+    /// # Returns
+    /// * [`Value`] - The previous value of the key.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn setget<T: Into<SetValue>>(&mut self, key: &str, value: T) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::SET {
             key: key.to_string(),
@@ -161,6 +291,15 @@ impl Client {
         Ok(resp)
     }
 
+    /// Sets the value of a key with an expiration time.
+    /// # Arguments
+    /// * `key` - The key to set the value of.
+    /// * `value` - The value to set.
+    /// * `option`: [`SetOption`] - The option to specify conditions for setting the expiry.
+    /// # Returns
+    /// * [`Value`] - A response from the server with an OK if succes.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn setex<T: Into<SetValue>>(
         &mut self,
         key: &str,
@@ -175,7 +314,13 @@ impl Client {
         })?;
         Ok(resp)
     }
-
+    /// Returns the remaining time to live (in seconds) of a key that has an expiration set.
+    /// # Arguments
+    /// * `key` - The key to get the time to live of.
+    /// # Returns
+    /// * [`Value`] - The remaining time to live in seconds.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn ttl(&mut self, key: &str) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::TTL {
             key: key.to_string(),
@@ -183,6 +328,13 @@ impl Client {
         Ok(resp)
     }
 
+    /// Returns the type of the value stored at `key` as a string.
+    /// # Arguments
+    /// * `key` - The key to get the type of.
+    /// # Returns
+    /// * [`Value`] - The type of the value stored at `key`, as a [`Value::VStr`] variant.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
     pub fn dtype(&mut self, key: &str) -> Result<Value> {
         let resp = self.command_client.execute_command(Command::TYPE {
             key: key.to_string(),

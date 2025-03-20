@@ -1,9 +1,6 @@
-use dicedb_rs::{
-    self,
-    client::{self, Client},
-};
+use dicedb_rs::{self, client::Client, errors::ClientError};
 
-fn main() -> Result<(), client::ClientError> {
+fn main() -> Result<(), ClientError> {
     // Create a new client
     let mut client = Client::new("localhost".to_string(), 7379).unwrap();
 

@@ -1,31 +1,32 @@
+//! # WatchStream Module
+//! The watchstream module contains the WatchStream struct and its implementation.
 use std::io;
 
 use uuid::Uuid;
 
 use crate::{
     commands::{Command, CommandExecutor, ExecutionMode, Value, WatchValue},
-    stream::{Stream, StreamError, WatchValueReceiver},
+    errors::{StreamError, WatchStreamError},
+    stream::{Stream, WatchValueReceiver},
 };
 
+/// WatchStream is a stream that is used to watch for changes in a key.
+/// It is build from the [`Client`](crate::client::Client) using the
+/// [`get_watch`](crate::client::Client::get_watch) method.
+///
+/// The stream implements the [`Iterator`] trait
+/// and will yield [`WatchValue`] values.
+///
+/// Therefore to use the stream, you can use it in a for loop like this:
+///
+/// ```rust
+/// for value in watch_stream {
+///    println!("Value: {:?}", value);
+///    // Do something with the value
+///    // ...
+/// }
+/// ```
 #[derive(Debug)]
-pub enum WatchStreamError {
-    IoError(io::Error),
-    UnexpectedResponse(Value),
-    StreamError(StreamError),
-}
-
-impl From<io::Error> for WatchStreamError {
-    fn from(error: io::Error) -> Self {
-        WatchStreamError::IoError(error)
-    }
-}
-
-impl From<StreamError> for WatchStreamError {
-    fn from(error: StreamError) -> Self {
-        WatchStreamError::StreamError(error)
-    }
-}
-
 pub struct WatchStream {
     host: String,
     port: u16,
@@ -101,9 +102,4 @@ impl Stream for WatchStream {
             ))),
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 }

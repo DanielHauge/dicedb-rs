@@ -1,6 +1,7 @@
 use crate::{
-    client::{Client, ClientError},
+    client::Client,
     commands::{Command, CommandExecutor, Value},
+    errors::ClientError,
     stream::Stream,
     watchstream::WatchStream,
 };
@@ -8,6 +9,14 @@ use crate::{
 type Result<T> = std::result::Result<T, ClientError>;
 
 impl Client {
+    /// Get a watch stream for a key.
+    /// This operation is unstable.
+    /// # Arguments
+    /// * `key` - The key to watch
+    /// # Returns
+    /// * A watch stream and the first value of the key
+    /// # Errors
+    /// * If the watch stream could not be created
     #[deprecated(note = "This operation is unstable.")]
     pub fn get_watch(&mut self, key: &str) -> Result<(WatchStream, Value)> {
         let mut new_watch_stream = WatchStream::new(self.host.clone(), self.port)?;

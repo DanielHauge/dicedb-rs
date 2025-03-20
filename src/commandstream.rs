@@ -1,12 +1,14 @@
-use std::io::{self, Error, ErrorKind};
+use std::io::{self, ErrorKind};
 
 use uuid::Uuid;
 
 use crate::{
     commands::{Command, CommandExecutor, ExecutionMode, Value},
-    stream::{Stream, StreamError},
+    errors::{CommandStreamError, StreamError},
+    stream::Stream,
 };
 
+#[derive(Debug)]
 pub(crate) struct CommandStream {
     host: String,
     port: u16,
@@ -57,26 +59,5 @@ impl Stream for CommandStream {
                 format!("Handshake error: {:?}", value),
             ))),
         }
-    }
-}
-
-#[derive(Debug)]
-pub enum CommandStreamError {
-    ReadError(Error),
-    DecodeError(prost::DecodeError),
-    HandshakeError(Value),
-    CommandError(String),
-    ConnectionError(String),
-    MissingValue,
-}
-
-impl From<Error> for CommandStreamError {
-    fn from(error: Error) -> Self {
-        CommandStreamError::ReadError(error)
-    }
-}
-impl From<prost::DecodeError> for CommandStreamError {
-    fn from(error: prost::DecodeError) -> Self {
-        CommandStreamError::DecodeError(error)
     }
 }

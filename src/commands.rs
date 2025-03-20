@@ -1,17 +1,33 @@
-use std::{fmt::Display, string};
+//! # Commands Module
+//! Contains structures and options related to interact with the server.
+//! It contains structures for all the commands, value types and options.
 
-use prost::{DecodeError, Message};
+use prost::Message;
+use std::fmt::Display;
 
-use crate::stream::StreamError;
+use crate::errors::{CommandError, StreamError};
 
 mod wire {
     tonic::include_proto!("wire");
 }
 
+/// A special input type for the DEL oeration.
+#[derive(Debug, Clone, PartialEq)]
+pub enum DelInput<'a> {
+    /// A single key to delete.
+    Single(&'a str),
+    /// Multiple keys to delete.
+    Multiple(Vec<&'a str>),
+}
+
+/// Valid values that can be used with the SET operation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SetValue {
+    /// A string value.
     Str(String),
+    /// An integer value.
     Int(i64),
+    /// A floating point value.
     Float(f64),
 }
 
@@ -104,12 +120,18 @@ impl Into<SetValue> for &str {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+/// A value received from the server.
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Value {
+    /// A string value.
     VStr(String),
+    /// An integer value.
     VInt(i64),
+    /// A floating point value.
     VFloat(f64),
+    /// A boolean value.
     VBool(bool),
+    /// A null value. A null value is not indicative of failure, but just the absence of a value.
     VNull,
 }
 
@@ -151,17 +173,12 @@ impl Into<Value> for wire::response::Value {
     }
 }
 
-#[derive(Debug)]
-pub enum CommandError {
-    IoError(std::io::Error),
-    ServerError(String),
-    DecodeError(DecodeError),
-    WatchValueExpectationError(String),
-}
-
+/// A watch value is a value that originates from a GET.WATCH command.
 #[derive(Debug)]
 pub struct WatchValue {
+    /// The value from the watch session, it indicates a change in a watched key.
     pub value: Value,
+    /// The fingerprint of the value, which is a unique identifier for the value.
     pub fingerprint: String,
 }
 
@@ -172,7 +189,7 @@ impl Into<Value> for WatchValue {
 }
 
 impl WatchValue {
-    pub fn decode_watchvalue(bytes: &[u8]) -> Result<Self, CommandError> {
+    pub(crate) fn decode_watchvalue(bytes: &[u8]) -> Result<Self, CommandError> {
         match wire::Response::decode(bytes) {
             Ok(v) => {
                 if v.err == "" {
@@ -216,7 +233,7 @@ impl WatchValue {
 }
 
 impl Value {
-    pub fn decode_value(bytes: &[u8]) -> Result<Self, CommandError> {
+    pub(crate) fn decode_value(bytes: &[u8]) -> Result<Self, CommandError> {
         let decoded = match wire::Response::decode(bytes) {
             Ok(v) => {
                 if v.err == "" {
@@ -248,10 +265,14 @@ pub(crate) trait CommandExecutor {
     fn execute_command(&mut self, command: Command) -> Result<Value, StreamError>;
 }
 
-#[derive(Debug)]
+/// Expire options for the EXPIRE command
+#[derive(Debug, Clone, Copy)]
 pub enum ExpireOption {
-    NX, // Don't overwrite existing expiration time
-    XX, // Only set the expiration time if it already exists
+    /// Don't overwrite existing expiration time
+    NX,
+    /// Only set the expiration time if it already exists
+    XX,
+    /// Always set the expiration time
     None,
 }
 
@@ -265,12 +286,18 @@ impl AsArg for ExpireOption {
     }
 }
 
-#[derive(Debug)]
+/// Expire options for the EXPIREAT command
+#[derive(Debug, Clone, Copy)]
 pub enum ExpireAtOption {
-    NX, // Don't overwrite existing expiration time
-    XX, // Only set the expiration time if it already exists
-    GT, // Set the expiration time only if it's greater than the existing expiration time
-    LT, // Set the expiration time only if it's less than the existing expiration time
+    /// Don't overwrite existing expiration time
+    NX,
+    /// Only set the expiration time if it already exists
+    XX,
+    /// Set the expiration time only if it's greater than the existing expiration time
+    GT,
+    /// Set the expiration time only if it's less than the existing expiration time
+    LT,
+    /// Always set the expiration time
     None,
 }
 
@@ -286,12 +313,18 @@ impl AsArg for ExpireAtOption {
     }
 }
 
-#[derive(Debug)]
+/// Options for the GETEX command
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum GetexOption {
+    /// Set the expiration to seconds from now.
     EX(u64),
+    /// Set the expiration to milliseconds from now.
     PX(u64),
+    /// Set the expiration to a Unix timestamp.
     EXAT(u64),
+    /// Set the expiration to a Unix timestamp in milliseconds.
     PXAT(u64),
+    /// Remove the expiration from the key.
     PERSIST,
 }
 
@@ -307,15 +340,24 @@ impl AsArgs for GetexOption {
     }
 }
 
-#[derive(Debug)]
+/// Options for the SET command
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum SetOption {
+    /// Set the expiration time in seconds
     EX(u64),
+    /// Set the expiration time in milliseconds
     PX(u64),
+    /// Set the expiration time in seconds since epoch
     EXAT(u64),
+    /// Set the expiration time in milliseconds since epoch
     PXAT(u64),
+    /// Only set the key if it already exists
     XX,
+    /// Only set the key if it does not already exist
     NX,
+    /// Keep the existing TTL of the key
     KEEPTTL,
+    /// No special option, default
     None,
 }
 
