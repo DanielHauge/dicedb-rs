@@ -3,7 +3,7 @@
   ·
   <a href="./examples/">Examples</a>
   ·
-  <a href="#">Docs</a>
+  <a href="https://docs.rs/dicedb-rs/latest/dicedb_rs/">Docs</a>
 </h4>
 
 <div align="center"><p>
