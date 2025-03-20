@@ -56,6 +56,8 @@ impl Client {
 
 #[cfg(test)]
 mod tests {
+    use crate::watchstream::WatchStream;
+
     use super::*;
     const HOST: &str = "localhost";
     const PORT: u16 = 7379;
@@ -64,5 +66,17 @@ mod tests {
     fn test_client() {
         let d = Client::new(HOST.to_string(), PORT);
         assert!(d.is_ok());
+    }
+
+    #[test]
+    fn test_client_error() {
+        let d = Client::new(HOST.to_string(), 0); // invalid port
+        assert!(d.is_err());
+    }
+
+    #[test]
+    fn test_client_error2() {
+        let wc = WatchStream::new(HOST.to_string(), 0); // invalid port
+        assert!(wc.is_err());
     }
 }

@@ -32,30 +32,45 @@ mod tests {
     const HOST: &str = "localhost";
     const PORT: u16 = 7379;
 
+    // BUG: When keys contain underscores, it seems to give inconsistent behaviors
+    #[allow(dead_code)]
+    const BUGGY_KEYS: [&str; 4] = [
+        "watch_key",
+        "watch_key_first_value",
+        "watch_key_first_val_int",
+        "watch_key_iter",
+    ];
+
+    const GOOD_KEYS: [&str; 4] = [
+        "watchkey",
+        "watchkeyfirstvalue",
+        "watchkeyfirstvalint",
+        "watchkeyiter",
+    ];
+
+    const KEYS: [&str; 4] = GOOD_KEYS;
+
     #[test]
-    #[ignore] // TODO: Most likely flaky test, watcher client seems to be unstable. Problem peraps
-              // due to spawning to many watch clients.
     fn test_create_watcher() {
         let mut client = Client::new(HOST.to_string(), PORT).unwrap();
-        let watch_stream = client.get_watch("watch_key");
+        let key = KEYS[0];
+        let watch_stream = client.get_watch(key);
         assert!(watch_stream.is_ok());
     }
 
     #[test]
-    #[ignore] // TODO: Flaky test (Handshake respone with VNull, rarely)
     fn test_get_watch_first_value_null() {
         let mut client = Client::new(HOST.to_string(), PORT).unwrap();
-        let key = "watch_key_first_value";
+        let key = KEYS[1];
         let watch_stream = client.get_watch(key).unwrap();
         let (_, first_value) = watch_stream;
         assert_eq!(first_value, Value::VNull);
     }
 
     #[test]
-    #[ignore] // TODO: Flaky test  (Connection reset by peers, rarely)
     fn test_get_watch_first_val_int() {
         let mut client = Client::new(HOST.to_string(), PORT).unwrap();
-        let key = "watch_key_first_val_int";
+        let key = KEYS[2];
         client.set(key, 1).unwrap();
         let watch_stream = client.get_watch(key).unwrap();
         let (_, first_value) = watch_stream;
@@ -63,9 +78,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // TODO: Flaky test
+    #[ignore] // BUG: Flaky test
     fn test_get_watch_iter() {
-        let key = "watch_key_iter";
+        let key = KEYS[3];
         let mut client = Client::new(HOST.to_string(), PORT).unwrap();
         client.del(key).unwrap();
         thread::sleep(std::time::Duration::from_secs(1));
@@ -89,7 +104,7 @@ mod tests {
         assert_eq!(
             *changed,
             vec![
-                Value::VNull, // WARNING: This sometimes is omitted, sometimes not
+                Value::VNull, // WARN: Sometimes this is omitted, sometimes not
                 Value::VInt(0),
                 Value::VInt(1),
                 Value::VInt(2),

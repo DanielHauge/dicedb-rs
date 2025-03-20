@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, string};
 
 use prost::{DecodeError, Message};
 
@@ -25,69 +25,82 @@ impl Into<Value> for SetValue {
     }
 }
 
+impl TryInto<SetValue> for Value {
+    type Error = String;
+
+    fn try_into(self) -> Result<SetValue, Self::Error> {
+        match self {
+            Value::VStr(s) => Ok(SetValue::Str(s)),
+            Value::VInt(i) => Ok(SetValue::Int(i)),
+            Value::VFloat(f) => Ok(SetValue::Float(f)),
+            Value::VBool(_) => Err("Cannot convert Value::VBool to SetValue".to_string()),
+            Value::VNull => Err("Cannot convert Value::VNull to SetValue".to_string()),
+        }
+    }
+}
+
+macro_rules! impl_vint_setvalue_for_int {
+    ($($t:ty),*) => {
+        $(
+            impl From<$t> for SetValue {
+                fn from(value: $t) -> Self {
+                    SetValue::Int(value as i64)
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! impl_vint_value_for_int {
+    ($($t:ty),*) => {
+        $(
+            impl From<$t> for Value {
+                fn from(value: $t) -> Self {
+                    Value::VInt(value as i64)
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! impl_vint_setvalue_for_float {
+    ($($t:ty),*) => {
+        $(
+            impl From<$t> for SetValue {
+                fn from(value: $t) -> Self {
+                    SetValue::Float(value as f64)
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! impl_vint_value_for_float {
+    ($($t:ty),*) => {
+        $(
+            impl From<$t> for Value {
+                fn from(value: $t) -> Self {
+                    Value::VFloat(value as f64)
+                }
+            }
+        )*
+    };
+}
+
+impl_vint_setvalue_for_int!(i64, i32, i16, i8, u64, u32, u16, u8);
+impl_vint_value_for_int!(i64, i32, i16, i8, u64, u32, u16, u8);
+impl_vint_setvalue_for_float!(f64, f32);
+impl_vint_value_for_float!(f64, f32);
+
+impl Into<Value> for &str {
+    fn into(self) -> Value {
+        Value::VStr(self.to_string())
+    }
+}
+
 impl Into<SetValue> for &str {
     fn into(self) -> SetValue {
         SetValue::Str(self.to_string())
-    }
-}
-
-impl Into<SetValue> for String {
-    fn into(self) -> SetValue {
-        SetValue::Str(self)
-    }
-}
-
-impl Into<SetValue> for i64 {
-    fn into(self) -> SetValue {
-        SetValue::Int(self)
-    }
-}
-
-impl Into<SetValue> for f64 {
-    fn into(self) -> SetValue {
-        SetValue::Float(self)
-    }
-}
-
-impl Into<SetValue> for i32 {
-    fn into(self) -> SetValue {
-        SetValue::Int(self as i64)
-    }
-}
-
-impl Into<SetValue> for i16 {
-    fn into(self) -> SetValue {
-        SetValue::Int(self as i64)
-    }
-}
-
-impl Into<SetValue> for i8 {
-    fn into(self) -> SetValue {
-        SetValue::Int(self as i64)
-    }
-}
-
-impl Into<SetValue> for u64 {
-    fn into(self) -> SetValue {
-        SetValue::Int(self as i64)
-    }
-}
-
-impl Into<SetValue> for u32 {
-    fn into(self) -> SetValue {
-        SetValue::Int(self as i64)
-    }
-}
-
-impl Into<SetValue> for u16 {
-    fn into(self) -> SetValue {
-        SetValue::Int(self as i64)
-    }
-}
-
-impl Into<SetValue> for u8 {
-    fn into(self) -> SetValue {
-        SetValue::Int(self as i64)
     }
 }
 
@@ -204,7 +217,7 @@ impl WatchValue {
 
 impl Value {
     pub fn decode_value(bytes: &[u8]) -> Result<Self, CommandError> {
-        match wire::Response::decode(bytes) {
+        let decoded = match wire::Response::decode(bytes) {
             Ok(v) => {
                 if v.err == "" {
                     match v.value {
@@ -216,7 +229,10 @@ impl Value {
                 }
             }
             Err(e) => Err(CommandError::DecodeError(e)),
-        }
+        };
+        eprintln!("Decoded value: {:?}", decoded);
+
+        decoded
     }
 }
 
@@ -553,6 +569,73 @@ impl Into<wire::Command> for Command {
 impl Command {
     pub(crate) fn encode(self) -> Vec<u8> {
         let command: wire::Command = self.into();
+        eprintln!("Sending command: {:?}", command);
         command.encode_to_vec()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_try_into() {
+        let v: Value = Value::VInt(42);
+        let v_setval: SetValue = v.try_into().unwrap();
+        assert_eq!(v_setval, SetValue::Int(42));
+        let v: Value = Value::VStr("42".to_string());
+        let v_setval: SetValue = v.try_into().unwrap();
+        assert_eq!(v_setval, SetValue::Str("42".to_string()));
+        let v: Value = Value::VFloat(42.0);
+        let v_setval: SetValue = v.try_into().unwrap();
+        assert_eq!(v_setval, SetValue::Float(42.0));
+        let v: Value = Value::VBool(true);
+        let v_setval: Result<SetValue, String> = v.try_into();
+        assert_eq!(
+            v_setval,
+            Err("Cannot convert Value::VBool to SetValue".to_string())
+        );
+        let v: Value = Value::VNull;
+        let v_setval: Result<SetValue, String> = v.try_into();
+        assert_eq!(
+            v_setval,
+            Err("Cannot convert Value::VNull to SetValue".to_string())
+        );
+    }
+
+    #[test]
+    fn test_value_can_convert() {
+        let v: i64 = 42;
+        let v_setval: SetValue = v.into();
+        let v_value: Value = v.into();
+        assert_eq!(v_setval, SetValue::Int(42));
+        assert_eq!(v_value, Value::VInt(42));
+
+        let v_f: f64 = 42.0;
+        let v_setval: SetValue = v_f.into();
+        let v_value: Value = v_f.into();
+        assert_eq!(v_setval, SetValue::Float(42.0));
+        assert_eq!(v_value, Value::VFloat(42.0));
+
+        let v_str: &str = "42";
+        let v_setval: SetValue = v_str.into();
+        let v_value: Value = v_str.into();
+        assert_eq!(v_setval, SetValue::Str("42".to_string()));
+        assert_eq!(v_value, Value::VStr("42".to_string()));
+    }
+
+    #[test]
+    fn test_display_for_value() {
+        let value = Value::VInt(1);
+        assert_eq!(format!("{}", value), "1");
+        let value = Value::VStr("test".to_string());
+        assert_eq!(format!("{}", value), "test");
+        let value = Value::VNull;
+        assert_eq!(format!("{}", value), "null");
+        let value = Value::VFloat(1.2);
+        assert_eq!(format!("{}", value), "1.2");
+        let value = Value::VBool(true);
+        assert_eq!(format!("{}", value), "true");
     }
 }

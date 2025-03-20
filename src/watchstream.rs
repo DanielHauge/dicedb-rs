@@ -102,3 +102,8 @@ impl Stream for WatchStream {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+}

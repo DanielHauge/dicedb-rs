@@ -101,7 +101,9 @@ impl<T: Stream> ValueReceiver for T {
 
 impl<T: Stream> CommandSender for T {
     fn send_command(&mut self, command: Command) -> Result<(), StreamError> {
+        eprintln!("Sending command: {:?}", command);
         let serialized_command = command.encode();
+        eprintln!("Sending command: {:?}", serialized_command);
         match self.tcp_stream().write_all(&serialized_command) {
             Ok(_) => Ok(()),
             Err(_) => {
@@ -117,5 +119,20 @@ impl<T: Stream> CommandExecutor for T {
     fn execute_command(&mut self, command: Command) -> Result<Value, StreamError> {
         self.send_command(command)?;
         self.receive_value()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::commandstream::CommandStream;
+
+    use super::*;
+
+    #[test]
+    fn test_reconnect() {
+        let mut command_client = CommandStream::new("localhost".to_string(), 7379).unwrap();
+        let reconnect_result = command_client.reconnect(10);
+        assert!(reconnect_result.is_ok());
     }
 }
