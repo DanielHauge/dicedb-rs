@@ -20,10 +20,18 @@ use crate::{
 /// Therefore to use the stream, you can use it in a for loop like this:
 ///
 /// ```rust
-/// for value in watch_stream {
-///    println!("Value: {:?}", value);
-///    // Do something with the value
-///    // ...
+/// use dicedb_rs::client::Client;
+/// fn main() -> Result<(), dicedb_rs::errors::ClientError> {
+///     let mut client = Client::new("localhost".to_string(), 7379)?;
+///     let (watch_stream, first_value) = client.get_watch("key").unwrap();
+///     eprintln!("First value: {:?}", first_value);
+///     // watch stream is an iterator:
+///     // for value in watch_stream {
+///        // println!("Value: {:?}", value);
+///        // Do something with the value
+///        // ...
+///    // }
+/// Ok(())
 /// }
 /// ```
 #[derive(Debug)]

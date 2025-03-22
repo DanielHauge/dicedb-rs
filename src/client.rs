@@ -19,11 +19,11 @@ impl Client {
     /// Create a new client with the given host and port.
     /// # Example
     /// ```
-    /// use dice_db::client::Client;
-    /// use dice_db::errors::ClientError;
+    /// use dicedb_rs::client::Client;
+    /// use dicedb_rs::errors::ClientError;
     /// fn main() -> Result<(), ClientError> {
     ///    // Create a new client
-    ///    let mut client = Client::new("localhost".to_string(), 7379)?;
+    ///    let client = Client::new("localhost".to_string(), 7379)?;
     ///    Ok(())
     /// }
     /// ```
