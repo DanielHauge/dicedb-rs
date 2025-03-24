@@ -601,6 +601,15 @@ mod tests {
     }
 
     #[test]
+    fn test_hgetlallnil() {
+        let mut client = Client::new(HOST.to_string(), PORT).unwrap();
+
+        let key = "testhgetallnil";
+        let hset: HashMap<String, String> = client.hgetall(key).unwrap().into();
+        assert_eq!(hset.len(), 0);
+    }
+
+    #[test]
     fn test_decr() {
         let mut client = Client::new(HOST.to_string(), PORT).unwrap();
         let key = "testdecr";
