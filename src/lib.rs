@@ -46,7 +46,6 @@
 //! To get started, you can create a new client and start interacting with the database with the
 //! following example:
 //! ```rust
-//!
 //! use dicedb_rs::{client::Client, errors::ClientError};
 //!
 //! fn main() -> Result<(), ClientError> {

@@ -20,6 +20,17 @@ pub enum DelInput<'a> {
     Multiple(Vec<&'a str>),
 }
 
+/// A special input type for the HSET operation.
+/// The type is a convenience type that allows users to specify either a single key-value pair or
+/// multiple key-value pairs.
+#[derive(Debug, Clone, PartialEq)]
+pub enum HSetInput<'a> {
+    /// A single key-value pair.
+    Single(&'a str, &'a str),
+    /// Multiple key-value pairs.
+    Multiple(Vec<(&'a str, &'a str)>),
+}
+
 /// Valid values that can be used with the SET operation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SetValue {
@@ -376,6 +387,33 @@ impl AsArgs for SetOption {
     }
 }
 
+impl AsArg for SetValue {
+    fn as_arg(&self) -> String {
+        match self {
+            SetValue::Str(s) => s.clone(),
+            SetValue::Int(i) => i.to_string(),
+            SetValue::Float(f) => f.to_string(),
+        }
+    }
+}
+
+impl AsArg for String {
+    fn as_arg(&self) -> String {
+        self.clone()
+    }
+}
+
+impl AsArgs for Vec<(String, SetValue)> {
+    fn as_args(&self) -> Vec<String> {
+        let mut args = vec![];
+        for (field, value) in self {
+            args.push(field.clone());
+            args.push(value.as_arg());
+        }
+        args
+    }
+}
+
 #[derive(Debug)]
 pub(crate) enum ExecutionMode {
     Command,
@@ -433,6 +471,17 @@ pub(crate) enum Command {
     GETEX {
         key: String,
         ex: GetexOption,
+    },
+    HSET {
+        key: String,
+        fields: Vec<(String, String)>,
+    },
+    HGET {
+        key: String,
+        field: String,
+    },
+    HGETALL {
+        key: String,
     },
     GETWATCH {
         key: String,
@@ -551,6 +600,25 @@ impl Into<wire::Command> for Command {
                     args,
                 }
             }
+            Command::HSET { key, fields } => {
+                let mut args = vec![key];
+                for (field, value) in fields {
+                    args.push(field);
+                    args.push(value.as_arg());
+                }
+                wire::Command {
+                    cmd: "HSET".to_string(),
+                    args,
+                }
+            }
+            Command::HGET { key, field } => wire::Command {
+                cmd: "HGET".to_string(),
+                args: vec![key, field],
+            },
+            Command::HGETALL { key } => wire::Command {
+                cmd: "HGETALL".to_string(),
+                args: vec![key],
+            },
             Command::GETWATCH { key } => wire::Command {
                 cmd: "GET.WATCH".to_string(),
                 args: vec![key],

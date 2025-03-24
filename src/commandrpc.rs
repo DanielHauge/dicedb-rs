@@ -5,6 +5,7 @@ use crate::commands::DelInput;
 use crate::commands::ExpireAtOption;
 use crate::commands::ExpireOption;
 use crate::commands::GetexOption;
+use crate::commands::HSetInput;
 use crate::commands::SetOption;
 use crate::commands::SetValue;
 use crate::commands::Value;
@@ -21,6 +22,18 @@ impl<'a> Into<DelInput<'a>> for Vec<&'a str> {
 impl<'a> Into<DelInput<'a>> for &'a str {
     fn into(self) -> DelInput<'a> {
         DelInput::Single(self)
+    }
+}
+
+impl<'a> Into<HSetInput<'a>> for (&'a str, &'a str) {
+    fn into(self) -> HSetInput<'a> {
+        HSetInput::Single(self.0, self.1)
+    }
+}
+
+impl<'a> Into<HSetInput<'a>> for Vec<(&'a str, &'a str)> {
+    fn into(self) -> HSetInput<'a> {
+        HSetInput::Multiple(self)
     }
 }
 
@@ -291,6 +304,64 @@ impl Client {
         Ok(resp)
     }
 
+    /// Sets the value of a field in a set for a key.
+    /// Yields a OK result if operation went okay, and an integer value for number of fields
+    /// updated.
+    ///
+    /// # Arguments
+    /// * `key` - The key to set the value of.
+    /// * `fields` - The fields to set.
+    /// # Returns
+    /// * [`Value`] - A response from the server with an OK if succes and the number of updated
+    /// fields.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
+    pub fn hset<'a, T: Into<HSetInput<'a>>>(&mut self, key: &str, fields: T) -> Result<Value> {
+        let hset_input: HSetInput<'_> = fields.into();
+        let fields: Vec<(String, String)> = match hset_input {
+            HSetInput::Single(field, value) => vec![(field.to_string(), value.to_owned())],
+            HSetInput::Multiple(fields) => fields
+                .iter()
+                .map(|(f, v)| (f.to_string(), v.to_string()))
+                .collect(),
+        };
+        let resp = self.command_client.execute_command(Command::HSET {
+            key: key.to_string(),
+            fields,
+        })?;
+        Ok(resp)
+    }
+
+    /// Gets the value of a field in a set for a key.
+    /// # Arguments
+    /// * `key` - The key to get the value of.
+    /// * `field` - The field to get the value of.
+    /// # Returns
+    /// * [`Value`] - The value of the field, VNull if the field does not exist.
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
+    pub fn hget(&mut self, key: &str, field: &str) -> Result<Value> {
+        let resp = self.command_client.execute_command(Command::HGET {
+            key: key.to_string(),
+            field: field.to_string(),
+        })?;
+        Ok(resp)
+    }
+
+    /// Gets all fields for a set for a key.
+    /// # Arguments
+    /// * `key` - The key to get the fields of.
+    /// # Returns
+    /// * [`Value`] - A list of fields and their values. TODO: Probalby wrong
+    /// # Errors
+    /// * [`StreamError`] - If an error occured in the communication stream.
+    pub fn hgetall(&mut self, key: &str) -> Result<Value> {
+        let resp = self.command_client.execute_command(Command::HGETALL {
+            key: key.to_string(),
+        })?;
+        Ok(resp)
+    }
+
     /// Sets the value of a key with an expiration time.
     /// # Arguments
     /// * `key` - The key to set the value of.
@@ -345,6 +416,8 @@ impl Client {
 
 #[cfg(test)]
 mod tests {
+    use uuid::Uuid;
+
     use super::*;
     const HOST: &str = "localhost";
     const PORT: u16 = 7379;
@@ -429,6 +502,65 @@ mod tests {
         assert_eq!(get, Value::VNull);
         let value_get = client.get(key).unwrap();
         assert_eq!(value_get, Value::VStr("case sensitive key?".to_string()));
+    }
+
+    #[test]
+    fn test_hgetset_single() {
+        let mut client = Client::new(HOST.to_string(), PORT).unwrap();
+
+        let key = "testhsetint";
+        let field_string = Uuid::new_v4().to_string();
+        let field = field_string.as_str();
+
+        let set_value = "Some value";
+        let result = client.hset(key, (field, set_value)).unwrap();
+        assert_eq!(result, Value::VInt(1));
+
+        let value_get = client.hget(key, field).unwrap();
+        assert_eq!(value_get, Value::VStr(set_value.to_string()));
+    }
+
+    #[test]
+    fn test_hgetset_multi() {
+        let mut client = Client::new(HOST.to_string(), PORT).unwrap();
+
+        let key = "testhsetint";
+        let field_string = Uuid::new_v4().to_string();
+        let field = field_string.as_str();
+
+        let field_string2 = Uuid::new_v4().to_string();
+        let field2 = field_string2.as_str();
+
+        let set_value = "Some value";
+        let set_value2 = "Some value 2";
+        let result = client
+            .hset(key, vec![(field, set_value), (field2, set_value2)])
+            .unwrap();
+        assert_eq!(result, Value::VInt(2));
+
+        let value_get = client.hget(key, field).unwrap();
+        assert_eq!(value_get, Value::VStr(set_value.to_string()));
+
+        let value_get2 = client.hget(key, field2).unwrap();
+        assert_eq!(value_get2, Value::VStr(set_value2.to_string()));
+    }
+
+    #[test]
+    fn test_hgetall() {
+        let mut client = Client::new(HOST.to_string(), PORT).unwrap();
+
+        let randomness = Uuid::new_v4().to_string();
+        let key = format!("testhgetall{}", randomness);
+        let kv = vec![
+            ("somefield1", "Some  value1"),
+            ("somefield2", "Some value2"),
+            ("somefield3", "Some value3"),
+        ];
+        let set_result = client.hset(&key, kv).unwrap();
+        assert_eq!(set_result, Value::VInt(3));
+
+        let hset = client.hgetall(&key).unwrap();
+        assert_eq!(hset, Value::VNull);
     }
 
     #[test]
