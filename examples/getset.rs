@@ -1,4 +1,4 @@
-use dicedb_rs::{self, client::Client, commands::Value, errors::ClientError};
+use dicedb_rs::{self, client::Client, commands::ScalarValue, errors::ClientError};
 
 fn main() -> Result<(), ClientError> {
     // Create a new client
@@ -23,7 +23,7 @@ fn main() -> Result<(), ClientError> {
     // Get an int
     let int_value = client.get("my_int")?;
     match int_value {
-        Value::VInt(int_value) => println!("my_int: {}", int_value),
+        ScalarValue::VInt(int_value) => println!("my_int: {}", int_value),
         _ => println!("my_int is not an int? oh nouh!, someone changed my int!"),
     }
 

@@ -3,7 +3,7 @@
 //! It contains structures for all the commands, value types and options.
 
 use prost::Message;
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 use crate::errors::{CommandError, StreamError};
 
@@ -33,7 +33,7 @@ pub enum HSetInput<'a> {
 
 /// Valid values that can be used with the SET operation.
 #[derive(Debug, Clone, PartialEq)]
-pub enum SetValue {
+pub enum SetInput {
     /// A string value.
     Str(String),
     /// An integer value.
@@ -42,26 +42,26 @@ pub enum SetValue {
     Float(f64),
 }
 
-impl Into<Value> for SetValue {
-    fn into(self) -> Value {
+impl Into<ScalarValue> for SetInput {
+    fn into(self) -> ScalarValue {
         match self {
-            SetValue::Str(s) => Value::VStr(s),
-            SetValue::Int(i) => Value::VInt(i),
-            SetValue::Float(f) => Value::VFloat(f),
+            SetInput::Str(s) => ScalarValue::VStr(s),
+            SetInput::Int(i) => ScalarValue::VInt(i),
+            SetInput::Float(f) => ScalarValue::VFloat(f),
         }
     }
 }
 
-impl TryInto<SetValue> for Value {
+impl TryInto<SetInput> for ScalarValue {
     type Error = String;
 
-    fn try_into(self) -> Result<SetValue, Self::Error> {
+    fn try_into(self) -> Result<SetInput, Self::Error> {
         match self {
-            Value::VStr(s) => Ok(SetValue::Str(s)),
-            Value::VInt(i) => Ok(SetValue::Int(i)),
-            Value::VFloat(f) => Ok(SetValue::Float(f)),
-            Value::VBool(_) => Err("Cannot convert Value::VBool to SetValue".to_string()),
-            Value::VNull => Err("Cannot convert Value::VNull to SetValue".to_string()),
+            ScalarValue::VStr(s) => Ok(SetInput::Str(s)),
+            ScalarValue::VInt(i) => Ok(SetInput::Int(i)),
+            ScalarValue::VFloat(f) => Ok(SetInput::Float(f)),
+            ScalarValue::VBool(_) => Err("Cannot convert Value::VBool to SetValue".to_string()),
+            ScalarValue::VNull => Err("Cannot convert Value::VNull to SetValue".to_string()),
         }
     }
 }
@@ -69,9 +69,9 @@ impl TryInto<SetValue> for Value {
 macro_rules! impl_vint_setvalue_for_int {
     ($($t:ty),*) => {
         $(
-            impl From<$t> for SetValue {
+            impl From<$t> for SetInput {
                 fn from(value: $t) -> Self {
-                    SetValue::Int(value as i64)
+                    SetInput::Int(value as i64)
                 }
             }
         )*
@@ -81,9 +81,9 @@ macro_rules! impl_vint_setvalue_for_int {
 macro_rules! impl_vint_value_for_int {
     ($($t:ty),*) => {
         $(
-            impl From<$t> for Value {
+            impl From<$t> for ScalarValue {
                 fn from(value: $t) -> Self {
-                    Value::VInt(value as i64)
+                    ScalarValue::VInt(value as i64)
                 }
             }
         )*
@@ -93,9 +93,9 @@ macro_rules! impl_vint_value_for_int {
 macro_rules! impl_vint_setvalue_for_float {
     ($($t:ty),*) => {
         $(
-            impl From<$t> for SetValue {
+            impl From<$t> for SetInput {
                 fn from(value: $t) -> Self {
-                    SetValue::Float(value as f64)
+                    SetInput::Float(value as f64)
                 }
             }
         )*
@@ -105,9 +105,9 @@ macro_rules! impl_vint_setvalue_for_float {
 macro_rules! impl_vint_value_for_float {
     ($($t:ty),*) => {
         $(
-            impl From<$t> for Value {
+            impl From<$t> for ScalarValue {
                 fn from(value: $t) -> Self {
-                    Value::VFloat(value as f64)
+                    ScalarValue::VFloat(value as f64)
                 }
             }
         )*
@@ -119,21 +119,21 @@ impl_vint_value_for_int!(i64, i32, i16, i8, u64, u32, u16, u8);
 impl_vint_setvalue_for_float!(f64, f32);
 impl_vint_value_for_float!(f64, f32);
 
-impl Into<Value> for &str {
-    fn into(self) -> Value {
-        Value::VStr(self.to_string())
+impl Into<ScalarValue> for &str {
+    fn into(self) -> ScalarValue {
+        ScalarValue::VStr(self.to_string())
     }
 }
 
-impl Into<SetValue> for &str {
-    fn into(self) -> SetValue {
-        SetValue::Str(self.to_string())
+impl Into<SetInput> for &str {
+    fn into(self) -> SetInput {
+        SetInput::Str(self.to_string())
     }
 }
 
 /// A value received from the server.
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
-pub enum Value {
+pub enum ScalarValue {
     /// A string value.
     VStr(String),
     /// An integer value.
@@ -146,39 +146,39 @@ pub enum Value {
     VNull,
 }
 
-impl Display for Value {
+impl Display for ScalarValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Value::VStr(s) => write!(f, "{}", s),
-            Value::VInt(i) => write!(f, "{}", i),
-            Value::VFloat(fl) => write!(f, "{}", fl),
-            Value::VBool(b) => write!(f, "{}", b),
-            Value::VNull => write!(f, "null"),
+            ScalarValue::VStr(s) => write!(f, "{}", s),
+            ScalarValue::VInt(i) => write!(f, "{}", i),
+            ScalarValue::VFloat(fl) => write!(f, "{}", fl),
+            ScalarValue::VBool(b) => write!(f, "{}", b),
+            ScalarValue::VNull => write!(f, "null"),
         }
     }
 }
 
-impl AsArg for Value {
+impl AsArg for ScalarValue {
     fn as_arg(&self) -> String {
         match self {
-            Value::VStr(s) => s.clone(),
-            Value::VInt(i) => i.to_string(),
-            Value::VFloat(f) => f.to_string(),
-            Value::VBool(b) => b.to_string(),
-            Value::VNull => "".to_string(),
+            ScalarValue::VStr(s) => s.clone(),
+            ScalarValue::VInt(i) => i.to_string(),
+            ScalarValue::VFloat(f) => f.to_string(),
+            ScalarValue::VBool(b) => b.to_string(),
+            ScalarValue::VNull => "".to_string(),
         }
     }
 }
 
-impl Into<Value> for wire::response::Value {
-    fn into(self) -> Value {
+impl Into<ScalarValue> for wire::response::Value {
+    fn into(self) -> ScalarValue {
         match self {
-            wire::response::Value::VNil(_) => Value::VNull,
-            wire::response::Value::VInt(i) => Value::VInt(i),
-            wire::response::Value::VStr(s) => Value::VStr(s),
-            wire::response::Value::VFloat(f) => Value::VFloat(f),
+            wire::response::Value::VNil(_) => ScalarValue::VNull,
+            wire::response::Value::VInt(i) => ScalarValue::VInt(i),
+            wire::response::Value::VStr(s) => ScalarValue::VStr(s),
+            wire::response::Value::VFloat(f) => ScalarValue::VFloat(f),
             wire::response::Value::VBytes(b) => {
-                Value::VStr(String::from_utf8_lossy(&b).to_string())
+                ScalarValue::VStr(String::from_utf8_lossy(&b).to_string())
             }
         }
     }
@@ -188,13 +188,13 @@ impl Into<Value> for wire::response::Value {
 #[derive(Debug)]
 pub struct WatchValue {
     /// The value from the watch session, it indicates a change in a watched key.
-    pub value: Value,
+    pub value: ScalarValue,
     /// The fingerprint of the value, which is a unique identifier for the value.
     pub fingerprint: String,
 }
 
-impl Into<Value> for WatchValue {
-    fn into(self) -> Value {
+impl Into<ScalarValue> for WatchValue {
+    fn into(self) -> ScalarValue {
         self.value
     }
 }
@@ -243,14 +243,43 @@ impl WatchValue {
     }
 }
 
-impl Value {
-    pub(crate) fn decode_value(bytes: &[u8]) -> Result<Self, CommandError> {
+/// HSetValue is a value that originates from a HGETALL command.
+#[derive(Debug, Clone, PartialEq)]
+pub struct HSetValue {
+    /// The fields of the hash set.
+    pub fields: HashMap<String, String>,
+}
+
+impl Into<HashMap<String, String>> for HSetValue {
+    fn into(self) -> HashMap<String, String> {
+        self.fields
+    }
+}
+
+impl HSetValue {
+    pub(crate) fn decode(bytes: &[u8]) -> Result<Self, CommandError> {
+        match wire::Response::decode(bytes) {
+            Ok(v) => {
+                if v.err == "" {
+                    let fields = v.v_ss_map;
+                    Ok(HSetValue { fields })
+                } else {
+                    Err(CommandError::ServerError(v.err))
+                }
+            }
+            Err(e) => Err(CommandError::DecodeError(e)),
+        }
+    }
+}
+
+impl ScalarValue {
+    pub(crate) fn decode(bytes: &[u8]) -> Result<Self, CommandError> {
         let decoded = match wire::Response::decode(bytes) {
             Ok(v) => {
                 if v.err == "" {
                     match v.value {
                         Some(value) => Ok(value.into()),
-                        None => Ok(Value::VNull),
+                        None => Ok(ScalarValue::VNull),
                     }
                 } else {
                     Err(CommandError::ServerError(v.err))
@@ -273,7 +302,8 @@ trait AsArgs {
 }
 
 pub(crate) trait CommandExecutor {
-    fn execute_command(&mut self, command: Command) -> Result<Value, StreamError>;
+    fn execute_scalar_command(&mut self, command: Command) -> Result<ScalarValue, StreamError>;
+    fn execute_hset_command(&mut self, command: Command) -> Result<HSetValue, StreamError>;
 }
 
 /// Expire options for the EXPIRE command
@@ -387,12 +417,12 @@ impl AsArgs for SetOption {
     }
 }
 
-impl AsArg for SetValue {
+impl AsArg for SetInput {
     fn as_arg(&self) -> String {
         match self {
-            SetValue::Str(s) => s.clone(),
-            SetValue::Int(i) => i.to_string(),
-            SetValue::Float(f) => f.to_string(),
+            SetInput::Str(s) => s.clone(),
+            SetInput::Int(i) => i.to_string(),
+            SetInput::Float(f) => f.to_string(),
         }
     }
 }
@@ -403,7 +433,7 @@ impl AsArg for String {
     }
 }
 
-impl AsArgs for Vec<(String, SetValue)> {
+impl AsArgs for Vec<(String, SetInput)> {
     fn as_args(&self) -> Vec<String> {
         let mut args = vec![];
         for (field, value) in self {
@@ -500,7 +530,7 @@ pub(crate) enum Command {
     PING,
     SET {
         key: String,
-        value: SetValue,
+        value: SetInput,
         option: SetOption,
         get: bool,
     },
@@ -648,7 +678,7 @@ impl Into<wire::Command> for Command {
                 option,
                 get,
             } => {
-                let value: Value = value.into();
+                let value: ScalarValue = value.into();
                 let mut args = vec![key, value.as_arg()];
                 args.extend(option.as_args());
                 match get {
@@ -691,23 +721,23 @@ mod tests {
 
     #[test]
     fn test_try_into() {
-        let v: Value = Value::VInt(42);
-        let v_setval: SetValue = v.try_into().unwrap();
-        assert_eq!(v_setval, SetValue::Int(42));
-        let v: Value = Value::VStr("42".to_string());
-        let v_setval: SetValue = v.try_into().unwrap();
-        assert_eq!(v_setval, SetValue::Str("42".to_string()));
-        let v: Value = Value::VFloat(42.0);
-        let v_setval: SetValue = v.try_into().unwrap();
-        assert_eq!(v_setval, SetValue::Float(42.0));
-        let v: Value = Value::VBool(true);
-        let v_setval: Result<SetValue, String> = v.try_into();
+        let v: ScalarValue = ScalarValue::VInt(42);
+        let v_setval: SetInput = v.try_into().unwrap();
+        assert_eq!(v_setval, SetInput::Int(42));
+        let v: ScalarValue = ScalarValue::VStr("42".to_string());
+        let v_setval: SetInput = v.try_into().unwrap();
+        assert_eq!(v_setval, SetInput::Str("42".to_string()));
+        let v: ScalarValue = ScalarValue::VFloat(42.0);
+        let v_setval: SetInput = v.try_into().unwrap();
+        assert_eq!(v_setval, SetInput::Float(42.0));
+        let v: ScalarValue = ScalarValue::VBool(true);
+        let v_setval: Result<SetInput, String> = v.try_into();
         assert_eq!(
             v_setval,
             Err("Cannot convert Value::VBool to SetValue".to_string())
         );
-        let v: Value = Value::VNull;
-        let v_setval: Result<SetValue, String> = v.try_into();
+        let v: ScalarValue = ScalarValue::VNull;
+        let v_setval: Result<SetInput, String> = v.try_into();
         assert_eq!(
             v_setval,
             Err("Cannot convert Value::VNull to SetValue".to_string())
@@ -717,35 +747,35 @@ mod tests {
     #[test]
     fn test_value_can_convert() {
         let v: i64 = 42;
-        let v_setval: SetValue = v.into();
-        let v_value: Value = v.into();
-        assert_eq!(v_setval, SetValue::Int(42));
-        assert_eq!(v_value, Value::VInt(42));
+        let v_setval: SetInput = v.into();
+        let v_value: ScalarValue = v.into();
+        assert_eq!(v_setval, SetInput::Int(42));
+        assert_eq!(v_value, ScalarValue::VInt(42));
 
         let v_f: f64 = 42.0;
-        let v_setval: SetValue = v_f.into();
-        let v_value: Value = v_f.into();
-        assert_eq!(v_setval, SetValue::Float(42.0));
-        assert_eq!(v_value, Value::VFloat(42.0));
+        let v_setval: SetInput = v_f.into();
+        let v_value: ScalarValue = v_f.into();
+        assert_eq!(v_setval, SetInput::Float(42.0));
+        assert_eq!(v_value, ScalarValue::VFloat(42.0));
 
         let v_str: &str = "42";
-        let v_setval: SetValue = v_str.into();
-        let v_value: Value = v_str.into();
-        assert_eq!(v_setval, SetValue::Str("42".to_string()));
-        assert_eq!(v_value, Value::VStr("42".to_string()));
+        let v_setval: SetInput = v_str.into();
+        let v_value: ScalarValue = v_str.into();
+        assert_eq!(v_setval, SetInput::Str("42".to_string()));
+        assert_eq!(v_value, ScalarValue::VStr("42".to_string()));
     }
 
     #[test]
     fn test_display_for_value() {
-        let value = Value::VInt(1);
+        let value = ScalarValue::VInt(1);
         assert_eq!(format!("{}", value), "1");
-        let value = Value::VStr("test".to_string());
+        let value = ScalarValue::VStr("test".to_string());
         assert_eq!(format!("{}", value), "test");
-        let value = Value::VNull;
+        let value = ScalarValue::VNull;
         assert_eq!(format!("{}", value), "null");
-        let value = Value::VFloat(1.2);
+        let value = ScalarValue::VFloat(1.2);
         assert_eq!(format!("{}", value), "1.2");
-        let value = Value::VBool(true);
+        let value = ScalarValue::VBool(true);
         assert_eq!(format!("{}", value), "true");
     }
 }

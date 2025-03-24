@@ -2,7 +2,7 @@
 //! This module contains the error types for the client and the server.
 //! The error types are used to handle errors that occur during the execution of the client and
 //! server.
-use crate::commands::Value;
+use crate::commands::ScalarValue;
 use prost::DecodeError;
 use std::io::Error;
 
@@ -30,7 +30,7 @@ pub enum CommandStreamError {
     DecodeError(prost::DecodeError),
     /// An unexpected value was received from the server during handshake. This can be caused by
     /// incompatible server version.
-    HandshakeError(Value),
+    HandshakeError(ScalarValue),
     /// An error occured in the command stream, this can be caused by an unexpected response from
     /// the server.
     CommandError(String),
@@ -116,7 +116,7 @@ pub enum WatchStreamError {
     IoError(Error),
     /// An error occured while decoding the response from the server. This can be caused by an
     /// incompatible server version.
-    UnexpectedResponse(Value),
+    UnexpectedResponse(ScalarValue),
     /// An error occured while handling a command.
     StreamError(StreamError),
 }

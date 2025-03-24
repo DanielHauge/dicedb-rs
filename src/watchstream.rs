@@ -5,7 +5,7 @@ use std::io;
 use uuid::Uuid;
 
 use crate::{
-    commands::{Command, CommandExecutor, ExecutionMode, Value, WatchValue},
+    commands::{Command, CommandExecutor, ExecutionMode, ScalarValue, WatchValue},
     errors::{StreamError, WatchStreamError},
     stream::{Stream, WatchValueReceiver},
 };
@@ -61,7 +61,7 @@ impl WatchStream {
 impl Drop for WatchStream {
     fn drop(&mut self) {
         match &self.fingerprint {
-            Some(f) => _ = self.execute_command(Command::UNWATCH { key: f.to_string() }),
+            Some(f) => _ = self.execute_scalar_command(Command::UNWATCH { key: f.to_string() }),
             None => {}
         }
     }
@@ -101,9 +101,9 @@ impl Stream for WatchStream {
             client_id: self.id.clone(),
             execution_mode: ExecutionMode::Watch,
         };
-        let reply = self.execute_command(handshake)?;
+        let reply = self.execute_scalar_command(handshake)?;
         match reply {
-            Value::VStr(v) if v == "OK" => Ok(()),
+            ScalarValue::VStr(v) if v == "OK" => Ok(()),
             value => Err(StreamError::IoError(io::Error::new(
                 io::ErrorKind::Other,
                 format!("Handshake error: {:?}", value),

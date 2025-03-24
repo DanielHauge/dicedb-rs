@@ -1,6 +1,6 @@
 use crate::{
     client::Client,
-    commands::{Command, CommandExecutor, Value},
+    commands::{Command, CommandExecutor, ScalarValue},
     errors::ClientError,
     stream::Stream,
     watchstream::WatchStream,
@@ -18,13 +18,13 @@ impl Client {
     /// * A watch stream and the first value of the key
     /// # Errors
     /// * If the watch stream could not be created
-    pub fn get_watch(&mut self, key: &str) -> Result<(WatchStream, Value)> {
+    pub fn get_watch(&mut self, key: &str) -> Result<(WatchStream, ScalarValue)> {
         let mut new_watch_stream = WatchStream::new(self.host.clone(), self.port)?;
         new_watch_stream.handshake()?;
         let get_watch = Command::GETWATCH {
             key: key.to_string(),
         };
-        let reply = new_watch_stream.execute_command(get_watch)?;
+        let reply = new_watch_stream.execute_scalar_command(get_watch)?;
         new_watch_stream.fingerprint = Some(key.to_string());
         Ok((new_watch_stream, reply))
     }
@@ -73,7 +73,7 @@ mod tests {
         let key = KEYS[1];
         let watch_stream = client.get_watch(key).unwrap();
         let (_, first_value) = watch_stream;
-        assert_eq!(first_value, Value::VNull);
+        assert_eq!(first_value, ScalarValue::VNull);
     }
 
     #[test]
@@ -83,7 +83,7 @@ mod tests {
         client.set(key, 1).unwrap();
         let watch_stream = client.get_watch(key).unwrap();
         let (_, first_value) = watch_stream;
-        assert_eq!(first_value, Value::VInt(1));
+        assert_eq!(first_value, ScalarValue::VInt(1));
     }
 
     #[test]
@@ -95,7 +95,7 @@ mod tests {
         thread::sleep(std::time::Duration::from_secs(1));
         let (watch_stream, _) = client.get_watch(key).unwrap();
         thread::sleep(std::time::Duration::from_secs(1));
-        let empty_value_vec: Vec<Value> = vec![];
+        let empty_value_vec: Vec<ScalarValue> = vec![];
         let changed = Arc::new(Mutex::new(empty_value_vec));
         let changed_clone = changed.clone();
         thread::spawn(move || {
@@ -113,13 +113,13 @@ mod tests {
         assert_eq!(
             *changed,
             vec![
-                Value::VNull, // WARN: Sometimes this is omitted, sometimes not
-                Value::VInt(0),
-                Value::VInt(1),
-                Value::VInt(2),
-                Value::VInt(3),
-                Value::VInt(4),
-                Value::VInt(5),
+                ScalarValue::VNull, // WARN: Sometimes this is omitted, sometimes not
+                ScalarValue::VInt(0),
+                ScalarValue::VInt(1),
+                ScalarValue::VInt(2),
+                ScalarValue::VInt(3),
+                ScalarValue::VInt(4),
+                ScalarValue::VInt(5),
             ]
         );
     }

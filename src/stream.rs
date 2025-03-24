@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 
 use crate::{
-    commands::{Command, CommandExecutor, Value, WatchValue},
+    commands::{Command, CommandExecutor, ScalarValue, WatchValue},
     errors::StreamError,
 };
 
@@ -17,8 +17,12 @@ pub trait Reconnectable {
     fn reconnect(&mut self, max_tries: u64) -> Result<(), StreamError>;
 }
 
-pub trait ValueReceiver {
-    fn receive_value(&mut self) -> Result<Value, StreamError>;
+pub trait ScalarValueReceiver {
+    fn receive_scalar_value(&mut self) -> Result<ScalarValue, StreamError>;
+}
+
+pub trait HsetValueReceiver {
+    fn receive_hset_value(&mut self) -> Result<crate::commands::HSetValue, StreamError>;
 }
 
 pub trait WatchValueReceiver {
@@ -66,12 +70,22 @@ impl<T: Stream> WatchValueReceiver for T {
     }
 }
 
-impl<T: Stream> ValueReceiver for T {
-    fn receive_value(&mut self) -> Result<Value, StreamError> {
+impl<T: Stream> ScalarValueReceiver for T {
+    fn receive_scalar_value(&mut self) -> Result<ScalarValue, StreamError> {
         let mut buffer = vec![0; MAX_REQUEST_SIZE];
         let size = self.tcp_stream().read(&mut buffer)?;
         let reply_slice = &buffer[..size];
-        let val = Value::decode_value(reply_slice)?;
+        let val = ScalarValue::decode(reply_slice)?;
+        Ok(val)
+    }
+}
+
+impl<T: Stream> HsetValueReceiver for T {
+    fn receive_hset_value(&mut self) -> Result<crate::commands::HSetValue, StreamError> {
+        let mut buffer = vec![0; MAX_REQUEST_SIZE];
+        let size = self.tcp_stream().read(&mut buffer)?;
+        let reply_slice = &buffer[..size];
+        let val = crate::commands::HSetValue::decode(reply_slice)?;
         Ok(val)
     }
 }
@@ -93,9 +107,17 @@ impl<T: Stream> CommandSender for T {
 }
 
 impl<T: Stream> CommandExecutor for T {
-    fn execute_command(&mut self, command: Command) -> Result<Value, StreamError> {
+    fn execute_scalar_command(&mut self, command: Command) -> Result<ScalarValue, StreamError> {
         self.send_command(command)?;
-        self.receive_value()
+        self.receive_scalar_value()
+    }
+
+    fn execute_hset_command(
+        &mut self,
+        command: Command,
+    ) -> Result<crate::commands::HSetValue, StreamError> {
+        self.send_command(command)?;
+        self.receive_hset_value()
     }
 }
 

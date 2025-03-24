@@ -3,7 +3,7 @@ use std::io::{self, ErrorKind};
 use uuid::Uuid;
 
 use crate::{
-    commands::{Command, CommandExecutor, ExecutionMode, Value},
+    commands::{Command, CommandExecutor, ExecutionMode, ScalarValue},
     errors::{CommandStreamError, StreamError},
     stream::Stream,
 };
@@ -51,9 +51,9 @@ impl Stream for CommandStream {
             client_id: self.id.clone(),
             execution_mode: ExecutionMode::Command,
         };
-        let reply = self.execute_command(handshake)?;
+        let reply = self.execute_scalar_command(handshake)?;
         match reply {
-            Value::VStr(v) if v == "OK" => Ok(()),
+            ScalarValue::VStr(v) if v == "OK" => Ok(()),
             value => Err(StreamError::IoError(io::Error::new(
                 ErrorKind::Other,
                 format!("Handshake error: {:?}", value),
