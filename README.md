@@ -33,7 +33,35 @@ DiceDB is an open-source, fast, reactive, in-memory database optimized for moder
 The source code for DiceDB can be found in the [DiceDB Github](https://github.com/DiceDB/dice) repository.
 
 > [!WARNING]
-> This SDK project is under active development without any stable API yet. A base implementation is made to support all operations of DiceDB.
+> This SDK project is under active development without any stable API yet. A base implementation is made to support basic operations of DiceDB.
+
+| Operation | Status |
+| --- | --- |
+| DECR | ✅ |
+| DECRBY | ✅ |
+| DEL | ✅ |
+| ECHO | ✅ |
+| EXISTS | ✅ |
+| EXPIRE | ✅ |
+| EXPIREAT | ✅ |
+| EXPIRETIME | ✅ |
+| FLUSHDB | ✅ |
+| GET | ✅ |
+| GETDEL | ✅ |
+| GETEX | ✅ |
+| GET.WATCH | 🚧 |
+| HANDSHAKE | ✅ |
+| HGET | ✅ |
+| HGETALL | ✅ |
+| HGETALL.WATCH | ❌ |
+| HSET | ✅ |
+| INCR | ✅ |
+| INCRBY | ✅ |
+| PING | ✅ |
+| SET | ✅ |
+| TTL | ✅ |
+| TYPE | ✅ |
+| UNWATCH | ✅ |
 
 ## Getting Started
 
